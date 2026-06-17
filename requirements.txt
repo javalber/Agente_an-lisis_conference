@@ -1,0 +1,15 @@
+# --- Orquestación del grafo / abstracción de modelo ---
+langgraph>=0.2,<2
+langchain>=0.3,<2
+# Proveedor inicial (se usa SOLO en Fase 3; en Fase 1 no se invoca el modelo).
+langchain-anthropic>=0.3,<2
+
+# --- Extracción de texto ---
+pdfplumber>=0.11        # PDF: texto + tablas
+openpyxl>=3.1           # motor de lectura de Excel
+pandas>=2.0             # Excel -> DataFrame -> markdown
+tabulate>=0.9           # requerido por DataFrame.to_markdown()
+python-pptx>=1.0        # PPTX: texto de slides + notas del presentador
+
+# --- Utilidades ---
+python-dotenv>=1.0      # cargar .env en el modo de prueba local
