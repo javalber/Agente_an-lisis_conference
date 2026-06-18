@@ -31,39 +31,55 @@ from .state import PipelineState
 log = logging.getLogger(__name__)
 
 
+def _forward_set(state: PipelineState, settings: Settings) -> list:
+    """Decide qué adjuntos se reenvían en el correo de salida, según
+    FORWARD_ATTACHMENTS: 'all' | 'summarized' | 'language'."""
+    mode = settings.forward_attachments
+    if mode == "summarized":
+        return state["to_summarize"]
+    if mode == "language":
+        lang = settings.summarize_language
+        return [
+            a for a in state["attachments"]
+            if a["language"] in (lang, "neutral")
+        ]
+    return state["attachments"]  # 'all' (por defecto)
+
+
 def build_graph(settings: Settings, gmail_client: GmailClient):
     """Construye y compila el grafo para los `settings`/`gmail_client` dados."""
 
-    # -- Nodo determinista: extracción de texto --
+    # -- Nodo determinista: extracción de texto (solo lo que se resume) --
     def extract_node(state: PipelineState) -> dict:
         updated = []
-        for att in state["attachments"]:
+        for att in state["to_summarize"]:
             text = extract_text(att["path"], att["kind"])
             updated.append({**att, "text": text})
-        return {"attachments": updated}
+        return {"to_summarize": updated}
 
     # -- Nodo AGENTE (IA): resumen por archivo, uno a uno --
     def summarize_node(state: PipelineState) -> dict:
         updated = []
-        for att in state["attachments"]:
+        for att in state["to_summarize"]:
             summary = summarize_attachment(att, settings)
             updated.append({**att, "summary": summary})
-        return {"attachments": updated}
+        return {"to_summarize": updated}
 
     # -- Nodo AGENTE (IA): redacción del correo --
     def draft_node(state: PipelineState) -> dict:
-        body = draft_email(state["attachments"], state["subject"], settings)
+        body = draft_email(state["to_summarize"], state["subject"], settings)
         return {"email_body": body}
 
     # -- Nodo determinista: envío SMTP --
     def send_node(state: PipelineState) -> dict:
         subject = f"{settings.subject_prefix} {state['subject']}".strip()
+        forward = _forward_set(state, settings)
         try:
             send_email(
                 settings,
                 subject=subject,
                 body=state["email_body"],
-                attachment_paths=[a["path"] for a in state["attachments"]],
+                attachment_paths=[a["path"] for a in forward],
             )
             return {"sent": True, "error": None}
         except Exception as exc:  # noqa: BLE001 - se reporta y se evita marcar

@@ -11,7 +11,9 @@ Placeholders disponibles:
 
 from __future__ import annotations
 
-# --- Una plantilla de resumen por tipo de archivo -------------------------
+# --- Una plantilla de resumen por ROL de documento ------------------------
+# Las claves son el `role` del adjunto (ver src/classify.py), NO la extensión:
+# la presentación puede llegar como PDF y aun así usar la plantilla de presentación.
 
 SUMMARY_PROMPTS: dict[str, str] = {
     "excel": (
@@ -24,17 +26,17 @@ SUMMARY_PROMPTS: dict[str, str] = {
         "Sé conciso y usa viñetas. No inventes cifras que no estén en los datos.\n\n"
         "=== CONTENIDO ===\n{content}"
     ),
-    "pptx": (
+    "presentation": (
         "Eres analista. A partir del texto de la presentación siguiente "
-        "(archivo: {filename}), que incluye el texto de cada slide y las NOTAS del "
-        "presentador (el guion real), redacta un resumen en español con:\n"
+        "(archivo: {filename}) —puede venir como PDF o PPTX; si incluye NOTAS del "
+        "presentador, suelen traer el guion real— redacta un resumen en español con:\n"
         "- Mensajes clave por sección/slide.\n"
         "- Conclusiones o llamadas a la acción.\n"
-        "Prioriza lo que aparezca en las notas del presentador cuando aporte "
-        "contexto. Usa viñetas y sé conciso.\n\n"
+        "Prioriza las notas del presentador cuando aporten contexto. Usa viñetas y "
+        "sé conciso.\n\n"
         "=== CONTENIDO ===\n{content}"
     ),
-    "pdf": (
+    "report": (
         "Eres analista. A partir del informe siguiente (archivo: {filename}), "
         "redacta un resumen en español que cubra:\n"
         "- Tesis principal del informe.\n"
@@ -44,6 +46,9 @@ SUMMARY_PROMPTS: dict[str, str] = {
         "=== CONTENIDO ===\n{content}"
     ),
 }
+
+# Plantilla de respaldo si apareciera un rol sin plantilla propia.
+DEFAULT_SUMMARY_PROMPT = SUMMARY_PROMPTS["report"]
 
 # --- Plantilla para redactar el correo final ------------------------------
 

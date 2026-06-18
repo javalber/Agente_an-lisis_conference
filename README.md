@@ -116,10 +116,14 @@ probar la lista real de destinatarios: `python run_local.py --real-recipients`.
 | `RECIPIENTS`         | Destinatarios separados por coma.                            |
 | `PROCESSED_LABEL`    | Etiqueta de procesado (por defecto `procesado`).             |
 | `SUBJECT_PREFIX`     | Prefijo del asunto de salida.                                |
-| `STUB_MODE`          | `true` en Fase 1; `false` en Fase 3.                         |
+| `STUB_MODE`          | `true` = resúmenes falsos; `false` = modelo real (Fase 3).   |
+| `SUMMARIZE_ROLES`    | Roles a resumir: `presentation,report,excel,invitation`.     |
+| `SUMMARIZE_LANGUAGE` | Idioma a resumir: `en` o `es` (los `neutral` siempre entran).|
+| `FORWARD_ATTACHMENTS`| Adjuntos a reenviar: `all` / `summarized` / `language`.      |
+| `MAX_CONTENT_CHARS`  | Tope de caracteres por documento enviado al modelo.          |
 | `MODEL_PROVIDER`     | Proveedor del modelo (p. ej. `anthropic`).                   |
 | `MODEL_NAME`         | Nombre del modelo (p. ej. `claude-sonnet-4-6`).              |
-| `ANTHROPIC_API_KEY`  | Solo en Fase 3 (`STUB_MODE=false`).                          |
+| `ANTHROPIC_API_KEY`  | Necesario con `STUB_MODE=false`.                             |
 
 ---
 
@@ -182,9 +186,33 @@ runner sin tocar el modelo.
 
 ---
 
+## Selección de documentos (idioma y rol)
+
+El remitente real envía **7 adjuntos**: cada documento duplicado en inglés y
+español, y la presentación llega como **PDF** (no PPTX). Por eso:
+
+- El **rol** y el **idioma** se detectan por el nombre del archivo
+  ([`src/classify.py`](src/classify.py)): `presentation` / `report` / `excel` /
+  `invitation`, e `en` / `es` / `neutral`.
+- La **plantilla** de resumen se elige por *rol* (no por extensión): una
+  presentación en PDF usa la plantilla de presentación.
+- Configuración por defecto: resumir **Presentación + Informe + Excel en inglés**
+  y reenviar **los 7 originales** (`SUMMARIZE_ROLES`, `SUMMARIZE_LANGUAGE`,
+  `FORWARD_ATTACHMENTS`).
+
+## Activar el modelo real (Fase 3)
+
+1. Crea el secret `ANTHROPIC_API_KEY` (y en `.env` local para pruebas).
+2. Pon `STUB_MODE=false` (ya está así en el workflow).
+3. Las llamadas se hacen vía `init_chat_model` → `ChatAnthropic`. Para cambiar de
+   proveedor: cambia `MODEL_PROVIDER`/`MODEL_NAME` e instala su paquete.
+4. Prueba en local primero: `python run_local.py` (envía solo a ti). Si el correo
+   de origen ya está etiquetado `procesado`, quita la etiqueta en Gmail para
+   reprocesarlo.
+
 ## Fases del proyecto
 
 - **Fase 1:** plumbing determinista + nodos de IA stubeados. ✅
-- **Fase 2 (actual):** workflow de GitHub Actions (cron 17/19/21/23 GMT-5,
-  secrets, dependencias). ✅
-- **Fase 3:** conectar el modelo real (poner `STUB_MODE=false` y la API key).
+- **Fase 2:** workflow de GitHub Actions (cron 17/19/21/23 GMT-5, secrets). ✅
+- **Fase 3:** modelo real conectado vía `init_chat_model`/Anthropic; se activa
+  con `STUB_MODE=false` + `ANTHROPIC_API_KEY`. ✅

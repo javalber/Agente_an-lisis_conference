@@ -15,6 +15,17 @@ from .graph import build_graph
 log = logging.getLogger(__name__)
 
 
+def _select_to_summarize(attachments: list, settings: Settings) -> list:
+    """Filtra los adjuntos a resumir por rol e idioma. Los 'neutral' (p. ej.
+    el Excel de estados financieros) se incluyen sea cual sea el idioma."""
+    roles = set(settings.summarize_roles)
+    lang = settings.summarize_language
+    return [
+        a for a in attachments
+        if a["role"] in roles and a["language"] in (lang, "neutral")
+    ]
+
+
 def run(settings: Settings | None = None) -> int:
     """Procesa todos los correos pendientes. Devuelve cuántos se enviaron OK.
 
@@ -44,21 +55,29 @@ def run(settings: Settings | None = None) -> int:
                     )
                     continue
 
-                kinds = sorted({a["kind"] for a in attachments})
-                expected = {"excel", "pptx", "pdf"}
-                if not expected.issubset(kinds):
+                log.info(
+                    "UID %s: %d adjunto(s): %s",
+                    uid, len(attachments), [a["filename"] for a in attachments],
+                )
+
+                to_summarize = _select_to_summarize(attachments, settings)
+                if not to_summarize:
                     log.warning(
-                        "UID %s: se esperaban los 3 tipos %s pero hay %s. "
-                        "Se procesa igualmente con lo disponible.",
-                        sorted(expected),
-                        kinds,
-                        uid,
+                        "UID %s: ningún adjunto coincide con roles=%s e idioma=%s. "
+                        "Se omite (no se marca).",
+                        uid, settings.summarize_roles, settings.summarize_language,
                     )
+                    continue
+                log.info(
+                    "UID %s: se resumirán %d documento(s): %s",
+                    uid, len(to_summarize), [a["filename"] for a in to_summarize],
+                )
 
                 state = {
                     "uid": uid,
                     "subject": subject,
                     "attachments": attachments,
+                    "to_summarize": to_summarize,
                     "email_body": "",
                     "sent": False,
                     "error": None,
