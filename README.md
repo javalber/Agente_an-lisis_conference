@@ -120,7 +120,7 @@ probar la lista real de destinatarios: `python run_local.py --real-recipients`.
 | `SUMMARIZE_ROLES`    | Roles a resumir: `presentation,report,excel,invitation`.     |
 | `SUMMARIZE_LANGUAGE` | Idioma a resumir: `en` o `es` (los `neutral` siempre entran).|
 | `FORWARD_ATTACHMENTS`| Adjuntos a reenviar: `all` / `summarized` / `language`.      |
-| `MAX_CONTENT_CHARS`  | Tope de caracteres por documento enviado al modelo.          |
+| `MAX_CONTENT_CHARS`  | Tope de chars por llamada (y tamaño de bloque del Excel grande).|
 | `MODEL_PROVIDER`     | Proveedor del modelo (p. ej. `anthropic`).                   |
 | `MODEL_NAME`         | Nombre del modelo (p. ej. `claude-sonnet-4-6`).              |
 | `ANTHROPIC_API_KEY`  | Necesario con `STUB_MODE=false`.                             |
@@ -199,6 +199,10 @@ español, y la presentación llega como **PDF** (no PPTX). Por eso:
 - Configuración por defecto: resumir **Presentación + Informe + Excel en inglés**
   y reenviar **los 7 originales** (`SUMMARIZE_ROLES`, `SUMMARIZE_LANGUAGE`,
   `FORWARD_ATTACHMENTS`).
+- **Excel grande:** la extracción es compacta (quita filas/columnas vacías, usa
+  CSV en vez de markdown). Si aun así excede el contexto del modelo, se resume
+  por **bloques de hojas (map-reduce)** y se combinan los parciales — sin truncar
+  datos a ciegas.
 
 ## Activar el modelo real (Fase 3)
 
