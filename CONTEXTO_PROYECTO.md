@@ -4,7 +4,7 @@
 > decisiones se tomaron** y **qué falta**. No sustituye al [README.md](README.md)
 > (que es la doc de uso); esto es la "memoria de la obra".
 >
-> Última actualización: **2026-06-17** · Estado: **Fase 1 COMPLETA**. Siguiente: **Fase 2**.
+> Última actualización: **2026-06-18** · Estado: **Fases 1 y 2 COMPLETAS**. Siguiente: **Fase 3**.
 
 ---
 
@@ -112,24 +112,23 @@ instalar el paquete de integración. No se toca la lógica.
   ⚠️ Tras envío OK el correo de origen se etiqueta `procesado`; para re-probar,
   quita la etiqueta en Gmail.
 
-### Fase 2 — Workflow de GitHub Actions ⏳ SIGUIENTE (mañana)
-Pendiente de construir `.github/workflows/*.yml`:
-- **Cron CORREGIDO (decisión del usuario 2026-06-17):** ejecutar a las
-  **17:00, 19:00, 21:00 y 23:00** (NO cada 30 min en horario de oficina; no
-  llegan correos más tarde de las 23:00; el proceso es corto).
-- ⚠️ **PENDIENTE DE CONFIRMAR: zona horaria.** GitHub Actions usa **cron en
-  UTC**. Hay que convertir esas horas locales. Si el usuario está en **España**:
-  - Horario de verano (CEST, UTC+2, que aplica el 17 de junio): 17/19/21/23 local
-    = **15:00, 17:00, 19:00, 21:00 UTC** → `cron: "0 15,17,19,21 * * *"`.
-  - Horario de invierno (CET, UTC+1): = **16,18,20,22 UTC**.
-  - GitHub Actions NO ajusta horario de verano automáticamente. Opción robusta:
-    setear `TZ` en el step y/o cron en UTC con margen, o programar las 4 horas
-    UTC que cubran ambos casos. **Confirmar zona y enfoque con el usuario.**
-- Instalar deps (`pip install -r requirements.txt`), cachear pip.
-- Pasar Secrets como env vars (ver tabla §6). En Fase 2 dejar `STUB_MODE=true`
-  para una primera ejecución de prueba en el runner.
-- Ejecutar `python main.py`.
-- Documentar en README cómo crear los Secrets en GitHub.
+### Fase 2 — Workflow de GitHub Actions ✅ COMPLETA
+Archivo: `.github/workflows/conference_digest.yml`.
+- **Zona horaria CONFIRMADA: GMT-5** (sin horario de verano → conversión estable).
+  Horas locales 17/19/21/23 → **UTC 22, 0, 2, 4**. Cron: `0 22,0,2,4 * * *`.
+- Disparadores: `schedule` (cron) + `workflow_dispatch` (ejecución manual de prueba).
+- `concurrency` para no solapar ejecuciones; `timeout-minutes: 15`.
+- `actions/checkout@v4`, `actions/setup-python@v5` (3.12, `cache: pip`),
+  `pip install -r requirements.txt`, `python main.py`.
+- Secrets como env: `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `SENDER_EMAIL`,
+  `RECIPIENTS`, `ANTHROPIC_API_KEY`. Config no sensible (PROCESSED_LABEL,
+  SUBJECT_PREFIX, MODEL_PROVIDER, MODEL_NAME, STUB_MODE) directa en el `env:`.
+- **`STUB_MODE: "true"`** en el yml (Fase 2). En Fase 3 cambiar a `"false"`.
+- README actualizado con la sección "GitHub Actions (Fase 2)" + tabla de secrets
+  + cómo probar con `workflow_dispatch`.
+- YAML validado con PyYAML (parsea OK).
+- PENDIENTE de que el usuario: cree los secrets en GitHub y lance el
+  `workflow_dispatch` para verificar en el runner real.
 
 ### Fase 3 — Conectar el modelo real (ÚLTIMA) ⏳
 - La rama real ya está escrita en `src/agents.py` pero **dormida** tras
@@ -166,20 +165,25 @@ Pendiente de construir `.github/workflows/*.yml`:
 - **Rama de modelo real gateada por `STUB_MODE`** en `src/agents.py` (Fase 3 ≈
   flip de flag). *Abierto:* el usuario podría querer borrarla hasta la Fase 3.
 - **`MODEL_NAME` por defecto `claude-sonnet-4-6`** (configurable).
-- **Cron a las 17/19/21/23** locales (corrección del 2026-06-17). *Abierto:*
-  confirmar zona horaria para la conversión a UTC en el `.yml`.
+- **Cron a las 17/19/21/23** locales en **GMT-5** (confirmado 2026-06-18) →
+  `0 22,0,2,4 * * *` en UTC. GMT-5 no tiene horario de verano, conversión estable.
 - Si un correo no trae los 3 tipos esperados, se registra warning pero se
   procesa con lo que haya (no se bloquea).
 
 ---
 
-## 8. Para retomar mañana (Fase 2) — checklist
+## 8. Para retomar (Fase 3) — checklist
 
-1. Confirmar zona horaria del usuario (¿España? ¿otra?) para el cron en UTC.
-2. Crear `.github/workflows/conference_digest.yml` con cron 17/19/21/23 (en UTC),
-   checkout, setup-python, `pip install -r requirements.txt` (con caché),
-   env desde Secrets, `STUB_MODE=true` para la primera prueba, `python main.py`.
-3. Añadir al README la sección "Configurar Secrets en GitHub".
-4. Probar el workflow con `workflow_dispatch` (ejecución manual) antes de fiarse
-   del cron.
-5. Cuando el usuario confirme, pasar a Fase 3 (modelo real).
+Antes de Fase 3, el usuario debería validar la Fase 2 en el runner real:
+- [ ] Crear los secrets en GitHub (GMAIL_USER, GMAIL_APP_PASSWORD, SENDER_EMAIL,
+      RECIPIENTS).
+- [ ] Lanzar `workflow_dispatch` y confirmar que llega el correo stub + adjuntos.
+
+Fase 3 (modelo real):
+1. Crear el secret `ANTHROPIC_API_KEY` en GitHub.
+2. Cambiar `STUB_MODE` a `"false"` en el `env:` del workflow (y en `.env` local).
+3. Revisar/afinar las plantillas de `src/prompts.py` con datos reales.
+4. La rama real de `src/agents.py` ya invoca el modelo vía `init_chat_model`;
+   no debería requerir cambios de código. Probar con `run_local.py` (sin
+   `--real-recipients`) antes de fiarse del cron.
+5. Decisión abierta: ¿mantener la rama real gateada por el flag o limpiarla?

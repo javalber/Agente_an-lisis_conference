@@ -123,8 +123,68 @@ probar la lista real de destinatarios: `python run_local.py --real-recipients`.
 
 ---
 
+## GitHub Actions (Fase 2)
+
+El workflow [`.github/workflows/conference_digest.yml`](.github/workflows/conference_digest.yml)
+ejecuta el pipeline por **cron**.
+
+### Horario
+
+El usuario trabaja en **GMT-5** (sin horario de verano) y quiere ejecuciones a las
+**17:00, 19:00, 21:00 y 23:00** locales. GitHub Actions usa **UTC**, así que se
+convierte sumando 5 horas:
+
+| Local (GMT-5) | UTC   |
+|---------------|-------|
+| 17:00         | 22:00 |
+| 19:00         | 00:00 |
+| 21:00         | 02:00 |
+| 23:00         | 04:00 |
+
+```yaml
+on:
+  schedule:
+    - cron: "0 22,0,2,4 * * *"
+  workflow_dispatch:        # permite ejecución manual de prueba
+```
+
+> El cron de GitHub puede retrasarse algunos minutos bajo carga; no es tiempo
+> real, así que es aceptable.
+
+### Configurar los Secrets
+
+En el repositorio: **Settings → Secrets and variables → Actions → New repository
+secret**. Crea estos secrets:
+
+| Secret               | Valor                                              |
+|----------------------|----------------------------------------------------|
+| `GMAIL_USER`         | Tu dirección de Gmail.                             |
+| `GMAIL_APP_PASSWORD` | App Password de Google (IMAP + SMTP).             |
+| `SENDER_EMAIL`       | Remitente conocido a buscar (correo del banco).   |
+| `RECIPIENTS`         | Destinatarios separados por coma.                 |
+| `ANTHROPIC_API_KEY`  | Solo necesario en Fase 3 (`STUB_MODE=false`).     |
+
+La configuración no sensible (`PROCESSED_LABEL`, `SUBJECT_PREFIX`,
+`MODEL_PROVIDER`, `MODEL_NAME`, `STUB_MODE`) va directa en el `env:` del workflow,
+no como secret. **En Fase 2, `STUB_MODE` está en `"true"`** para probar en el
+runner sin tocar el modelo.
+
+### Probar el workflow
+
+1. Configura los secrets de arriba.
+2. Ve a la pestaña **Actions → Conference call digest → Run workflow**
+   (`workflow_dispatch`) para lanzarlo manualmente, sin esperar al cron.
+3. Revisa los logs del job y confirma que llega el correo con los resúmenes-stub
+   y los tres adjuntos.
+
+> ⚠️ Para que haya algo que procesar debe existir un correo del `SENDER_EMAIL`
+> con los 3 adjuntos y **sin** la etiqueta `procesado`.
+
+---
+
 ## Fases del proyecto
 
-- **Fase 1 (actual):** plumbing determinista + nodos de IA stubeados. ✅
-- **Fase 2:** workflow de GitHub Actions (cron, secrets, dependencias).
+- **Fase 1:** plumbing determinista + nodos de IA stubeados. ✅
+- **Fase 2 (actual):** workflow de GitHub Actions (cron 17/19/21/23 GMT-5,
+  secrets, dependencias). ✅
 - **Fase 3:** conectar el modelo real (poner `STUB_MODE=false` y la API key).
