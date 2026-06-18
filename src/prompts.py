@@ -50,6 +50,20 @@ SUMMARY_PROMPTS: dict[str, str] = {
 # Plantilla de respaldo si apareciera un rol sin plantilla propia.
 DEFAULT_SUMMARY_PROMPT = SUMMARY_PROMPTS["report"]
 
+# Paso "reduce" del resumen de Excel grande: combina los resúmenes parciales
+# (uno por bloque de hojas) en un único resumen ejecutivo coherente.
+EXCEL_REDUCE_PROMPT: str = (
+    "Eres analista financiero. A continuación tienes varios resúmenes PARCIALES "
+    "de distintas hojas del mismo libro de Excel (archivo: {filename}), generados "
+    "por separado porque el archivo era demasiado grande. Combínalos en UN solo "
+    "resumen ejecutivo en español, sin repetir, centrado en:\n"
+    "- Cifras clave (totales, métricas principales).\n"
+    "- Variaciones relevantes (vs. periodo anterior, % cambio).\n"
+    "- Cualquier anomalía o dato fuera de lo esperado.\n"
+    "Usa viñetas y sé conciso.\n\n"
+    "=== RESÚMENES PARCIALES ===\n{partials}"
+)
+
 # --- Plantilla para redactar el correo final ------------------------------
 
 EMAIL_PROMPT: str = (

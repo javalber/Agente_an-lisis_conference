@@ -51,18 +51,28 @@ def _extract_pdf(path: str) -> str:
     return "\n".join(chunks).strip()
 
 
+# Marcador de inicio de hoja. Lo usa el resumen Excel para trocear por hoja
+# (map-reduce) cuando el contenido excede el contexto del modelo.
+SHEET_MARKER = "## Hoja: "
+
+
 def _extract_excel(path: str) -> str:
     import pandas as pd
 
     chunks: list[str] = []
-    # sheet_name=None -> dict {nombre_hoja: DataFrame}
-    sheets = pd.read_excel(path, sheet_name=None, engine="openpyxl")
+    # header=None: trata todas las filas como datos (los estados financieros
+    # no tienen una fila de cabecera limpia). sheet_name=None -> todas las hojas.
+    sheets = pd.read_excel(path, sheet_name=None, engine="openpyxl", header=None)
     for name, df in sheets.items():
-        chunks.append(f"## Hoja: {name}")
+        # Compactar sin perder datos: quita filas y columnas totalmente vacías.
+        df = df.dropna(axis=0, how="all").dropna(axis=1, how="all")
+        chunks.append(f"{SHEET_MARKER}{name}")
         if df.empty:
             chunks.append("(hoja vacía)")
         else:
-            chunks.append(df.to_markdown(index=False))
+            # CSV es mucho menos verboso que markdown (sin relleno ni separadores);
+            # NaN -> celda vacía. Reduce el tamaño drásticamente.
+            chunks.append(df.to_csv(index=False, header=False).strip())
     return "\n\n".join(chunks).strip()
 
 
