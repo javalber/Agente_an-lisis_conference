@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 
 from .config import Settings
-from .prompts import EMAIL_PROMPT, SUMMARY_PROMPTS
+from .prompts import DEFAULT_SUMMARY_PROMPT, EMAIL_PROMPT, SUMMARY_PROMPTS
 from .state import Attachment
 
 log = logging.getLogger(__name__)
@@ -59,8 +59,15 @@ def summarize_attachment(att: Attachment, settings: Settings) -> str:
         return f"RESUMEN DE PRUEBA – {att['filename']}"
 
     # --- Fase 3: llamada real al modelo (dormida hasta STUB_MODE=false) ---
-    template = SUMMARY_PROMPTS.get(att["kind"]) or SUMMARY_PROMPTS["pdf"]
-    prompt = template.format(filename=att["filename"], content=att["text"])
+    template = SUMMARY_PROMPTS.get(att["role"], DEFAULT_SUMMARY_PROMPT)
+    content = att["text"]
+    if len(content) > settings.max_content_chars:
+        log.warning(
+            "%s: texto de %d chars recortado a %d (MAX_CONTENT_CHARS).",
+            att["filename"], len(content), settings.max_content_chars,
+        )
+        content = content[: settings.max_content_chars] + "\n\n[...TEXTO RECORTADO...]"
+    prompt = template.format(filename=att["filename"], content=content)
     model = _get_chat_model(settings)
     log.info("Resumiendo %s con %s:%s", att["filename"], settings.model_provider, settings.model_name)
     return _content(model.invoke(prompt))

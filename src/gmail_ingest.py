@@ -19,24 +19,11 @@ import os
 from email.header import decode_header
 from email.message import Message
 
+from .classify import classify
 from .config import Settings
-from .state import Attachment, FileKind
+from .state import Attachment
 
 log = logging.getLogger(__name__)
-
-# Extensión -> tipo lógico de archivo.
-_EXT_TO_KIND: dict[str, FileKind] = {
-    ".xlsx": "excel",
-    ".xlsm": "excel",
-    ".xls": "excel",
-    ".pptx": "pptx",
-    ".pdf": "pdf",
-}
-
-
-def classify(filename: str) -> FileKind:
-    _, ext = os.path.splitext(filename.lower())
-    return _EXT_TO_KIND.get(ext, "unknown")
 
 
 def _decode_mime(value: str | None) -> str:
@@ -119,8 +106,8 @@ class GmailClient:
                 filename = _decode_mime(part.get_filename())
                 if not filename:
                     continue
-                kind = classify(filename)
-                if kind == "unknown":
+                meta = classify(filename)
+                if meta["kind"] == "unknown":
                     log.debug("UID %s: se ignora adjunto no soportado %s", uid, filename)
                     continue
 
@@ -136,12 +123,17 @@ class GmailClient:
                     Attachment(
                         filename=filename,
                         path=path,
-                        kind=kind,
+                        kind=meta["kind"],
+                        role=meta["role"],
+                        language=meta["language"],
                         text="",
                         summary="",
                     )
                 )
-                log.info("UID %s: descargado %s (%s)", uid, filename, kind)
+                log.info(
+                    "UID %s: descargado %s (kind=%s, role=%s, lang=%s)",
+                    uid, filename, meta["kind"], meta["role"], meta["language"],
+                )
 
             return subject, attachments
         finally:

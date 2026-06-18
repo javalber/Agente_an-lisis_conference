@@ -60,7 +60,15 @@ jobs:
           MODEL_PROVIDER: anthropic
           MODEL_NAME: claude-sonnet-4-6
 
-          # FASE 2: dejar en "true" para probar en el runner sin tocar el modelo.
-          # FASE 3: cambiar a "false" para activar las llamadas reales de IA.
-          STUB_MODE: "true"
+          # Selección: resumir Presentación + Informe + Excel, solo en inglés;
+          # reenviar los 7 adjuntos originales.
+          SUMMARIZE_ROLES: presentation,report,excel
+          SUMMARIZE_LANGUAGE: en
+          FORWARD_ATTACHMENTS: all
+          MAX_CONTENT_CHARS: "400000"
+
+          # STUB_MODE=true -> resúmenes falsos, sin tocar el modelo.
+          # FASE 3: cambiar a "false" para activar las llamadas reales de IA
+          # (requiere el secret ANTHROPIC_API_KEY).
+          STUB_MODE: "false"
         run: python main.py

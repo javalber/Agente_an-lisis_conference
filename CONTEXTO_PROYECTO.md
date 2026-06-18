@@ -4,7 +4,8 @@
 > decisiones se tomaron** y **qué falta**. No sustituye al [README.md](README.md)
 > (que es la doc de uso); esto es la "memoria de la obra".
 >
-> Última actualización: **2026-06-18** · Estado: **Fases 1 y 2 COMPLETAS**. Siguiente: **Fase 3**.
+> Última actualización: **2026-06-18** · Estado: **Fases 1, 2 y 3 COMPLETAS** (modelo
+> real conectado; pendiente la prueba real con API key del usuario).
 
 ---
 
@@ -130,14 +131,30 @@ Archivo: `.github/workflows/conference_digest.yml`.
 - PENDIENTE de que el usuario: cree los secrets en GitHub y lance el
   `workflow_dispatch` para verificar en el runner real.
 
-### Fase 3 — Conectar el modelo real (ÚLTIMA) ⏳
-- La rama real ya está escrita en `src/agents.py` pero **dormida** tras
-  `if settings.stub_mode`. Activar = poner `STUB_MODE=false` + setear la API key.
-- Proveedor inicial: **Anthropic** (`MODEL_PROVIDER=anthropic`,
-  `MODEL_NAME=claude-sonnet-4-6` por defecto, configurable). Requiere
-  `ANTHROPIC_API_KEY`.
-- Decisión abierta: el usuario puede preferir que la rama real NO exista hasta
-  esta fase (hoy está gateada por el flag). Confirmar.
+### Fase 3 — Modelo real ✅ CONECTADA (falta prueba real del usuario)
+- `src/agents.py` invoca el modelo vía `init_chat_model` (LangChain) → resuelto a
+  `ChatAnthropic` (verificado el wiring sin red, con key ficticia).
+- Activación: `STUB_MODE=false` (ya puesto en el workflow) + secret
+  `ANTHROPIC_API_KEY`. `MODEL_PROVIDER=anthropic`, `MODEL_NAME=claude-sonnet-4-6`.
+- Salvaguarda `MAX_CONTENT_CHARS` (default 400000): recorta y loguea si un
+  documento es enorme (el Excel real extrajo ~295k chars).
+- PENDIENTE: el usuario debe crear `ANTHROPIC_API_KEY`, quitar la etiqueta
+  `procesado` del correo de prueba y correr `run_local.py` para validar el
+  resumen real antes de fiarse del cron.
+
+### IMPORTANTE — el correo real NO era como se asumió
+La primera corrida real (UID 22110) reveló que el remitente envía **7 adjuntos**,
+NO 3, y **sin PPTX**:
+- Cada documento duplicado EN/ES: Invitación, Presentación (¡en PDF!), Informe.
+- 1 Excel de estados financieros.
+
+Rediseño aplicado (`src/classify.py`): se detecta `kind` (extracción), `role`
+(plantilla) e `language` por NOMBRE de archivo. Decisiones del usuario:
+- **Resumir:** Presentación + Informe + Excel, **solo inglés**
+  (`SUMMARIZE_ROLES=presentation,report,excel`, `SUMMARIZE_LANGUAGE=en`).
+- **Reenviar:** los **7 originales** (`FORWARD_ATTACHMENTS=all`).
+El grafo separa "qué se reenvía" (todo) de "qué se resume" (subconjunto)
+mediante `state["attachments"]` vs `state["to_summarize"]`.
 
 ---
 
