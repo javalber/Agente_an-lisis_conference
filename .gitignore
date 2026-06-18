@@ -6,3 +6,10 @@ venv/
 *.egg-info/
 .DS_Store
 /tmp_attachments/
+
+# Adjuntos reales (datos sensibles) — nunca subir al repo
+*.xlsx
+*.xls
+*.xlsm
+*.pdf
+*.pptx

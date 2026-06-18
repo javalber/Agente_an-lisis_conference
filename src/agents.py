@@ -15,6 +15,7 @@ DORMIDA hasta la Fase 3 (basta poner STUB_MODE=false y la API key).
 from __future__ import annotations
 
 import logging
+import re
 
 from .config import Settings
 from .prompts import (
@@ -38,6 +39,36 @@ def _get_chat_model(settings: Settings):
     return init_chat_model(
         model=settings.model_name,
         model_provider=settings.model_provider,
+    )
+
+
+# Tokens de trimestre tipo 1Q26 / 4Q25 / 1T26 (Q inglés o T español).
+_QUARTER_RE = re.compile(r"\b([1-4])\s*[QT]\s*(\d{2})\b", re.IGNORECASE)
+
+
+def _latest_period(text: str) -> str | None:
+    """Detecta el período (trimestre) más reciente presente en el texto, p. ej.
+    '1Q26'. Devuelve None si no encuentra ninguno. Determinista: así no dependemos
+    de que el modelo deduzca cuál es la última columna."""
+    best_key = None
+    best_label = None
+    for m in _QUARTER_RE.finditer(text):
+        quarter, year = int(m.group(1)), int(m.group(2))
+        key = (year, quarter)
+        if best_key is None or key > best_key:
+            best_key, best_label = key, f"{m.group(1)}Q{m.group(2)}"
+    return best_label
+
+
+def _excel_period_hint(full_text: str) -> str:
+    """Pista (línea de prompt) con el período más reciente del Excel, o ''."""
+    lp = _latest_period(full_text)
+    if not lp:
+        return ""
+    return (
+        f"- IMPORTANTE: el período más reciente disponible en el archivo es {lp}. "
+        f"Céntrate en {lp} y su variación vs. el trimestre anterior; no te quedes "
+        "en trimestres más antiguos aunque aparezcan en más hojas.\n"
     )
 
 
@@ -71,11 +102,23 @@ def summarize_attachment(att: Attachment, settings: Settings) -> str:
     if att["role"] == "excel" and len(att["text"]) > budget:
         return _summarize_excel_mapreduce(att, settings, model)
 
-    template = SUMMARY_PROMPTS.get(att["role"], DEFAULT_SUMMARY_PROMPT)
     content = _truncate(att["text"], budget, att["filename"])
-    prompt = template.format(filename=att["filename"], content=content)
+    prompt = _build_summary_prompt(att, content)
     log.info("Resumiendo %s con %s:%s", att["filename"], settings.model_provider, settings.model_name)
     return _content(model.invoke(prompt))
+
+
+def _build_summary_prompt(att: Attachment, content: str) -> str:
+    """Formatea la plantilla del rol. Para Excel añade la pista del período más
+    reciente (calculada sobre el texto COMPLETO, no sobre el bloque recortado)."""
+    template = SUMMARY_PROMPTS.get(att["role"], DEFAULT_SUMMARY_PROMPT)
+    if att["role"] == "excel":
+        return template.format(
+            filename=att["filename"],
+            content=content,
+            period_hint=_excel_period_hint(att["text"]),
+        )
+    return template.format(filename=att["filename"], content=content)
 
 
 def _truncate(text: str, budget: int, filename: str) -> str:
@@ -124,11 +167,14 @@ def _summarize_excel_mapreduce(att: Attachment, settings: Settings, model) -> st
     )
 
     template = SUMMARY_PROMPTS["excel"]
+    period_hint = _excel_period_hint(att["text"])
     partials: list[str] = []
     for i, chunk in enumerate(chunks, start=1):
         content = _truncate(chunk, budget, f"{att['filename']} [bloque {i}]")
         log.info("Resumiendo %s (bloque %d/%d)", att["filename"], i, len(chunks))
-        prompt = template.format(filename=att["filename"], content=content)
+        prompt = template.format(
+            filename=att["filename"], content=content, period_hint=period_hint
+        )
         partials.append(_content(model.invoke(prompt)))
 
     # Un solo bloque -> no hace falta reduce.
