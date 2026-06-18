@@ -87,7 +87,7 @@ python run_local.py
 `run_local.py`:
 - Carga `.env`.
 - Fuerza `STUB_MODE=true` (no toca ningún modelo).
-- Envía el correo **solo a ti mismo** (ignora `RECIPIENTS`).
+- Envía el correo **solo a ti mismo** (ignora la lista `RECIPIENTS` de config.py).
 
 Deberías recibir un correo con los resúmenes-stub y los tres adjuntos. Si quieres
 probar la lista real de destinatarios: `python run_local.py --real-recipients`.
@@ -113,7 +113,6 @@ probar la lista real de destinatarios: `python run_local.py --real-recipients`.
 | `GMAIL_USER`         | Tu dirección de Gmail.                                        |
 | `GMAIL_APP_PASSWORD` | App Password de Google (IMAP + SMTP).                        |
 | `SENDER_EMAIL`       | Remitente conocido a buscar (tu correo del banco).           |
-| `RECIPIENTS`         | Destinatarios separados por coma.                            |
 | `PROCESSED_LABEL`    | Etiqueta de procesado (por defecto `procesado`).             |
 | `SUBJECT_PREFIX`     | Prefijo del asunto de salida.                                |
 | `STUB_MODE`          | `true` = resúmenes falsos; `false` = modelo real (Fase 3).   |
@@ -165,13 +164,14 @@ secret**. Crea estos secrets:
 | `GMAIL_USER`         | Tu dirección de Gmail.                             |
 | `GMAIL_APP_PASSWORD` | App Password de Google (IMAP + SMTP).             |
 | `SENDER_EMAIL`       | Remitente conocido a buscar (correo del banco).   |
-| `RECIPIENTS`         | Destinatarios separados por coma.                 |
 | `ANTHROPIC_API_KEY`  | Solo necesario en Fase 3 (`STUB_MODE=false`).     |
+
+Los **destinatarios** ya no son secret: están explícitos en `src/config.py`
+(constante `RECIPIENTS`), para que sean fáciles de editar.
 
 La configuración no sensible (`PROCESSED_LABEL`, `SUBJECT_PREFIX`,
 `MODEL_PROVIDER`, `MODEL_NAME`, `STUB_MODE`) va directa en el `env:` del workflow,
-no como secret. **En Fase 2, `STUB_MODE` está en `"true"`** para probar en el
-runner sin tocar el modelo.
+no como secret.
 
 ### Probar el workflow
 

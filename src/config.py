@@ -12,6 +12,21 @@ from dataclasses import dataclass, field
 
 log = logging.getLogger(__name__)
 
+# ============================================================================
+# DESTINATARIOS del correo de resumen — EDITA AQUÍ.
+# Es explícito en el código (no un secret) para que sea fácil de cambiar.
+# Una dirección por línea, separadas por comas.
+# ============================================================================
+RECIPIENTS: list[str] = [
+    '"Serna Rivas, Alberto" <ASERNA3@bancodebogota.com.co>',
+    '"Mendez Pedraza, Isabella" <IMENDE1@bancodebogota.com.co>',
+    '"Rozo Sarmiento, Andres Felipe" <AROZO9@bancodebogota.com.co>',
+    '"Guerrero Moreno, Luis Fernando" <LGUER21@bancodebogota.com.co>',
+    '"Rodriguez Araujo, Andres David" <ARODR95@bancodebogota.com.co>',
+    '"Demoya Cadena, Santiago" <SDEMOYA@bancodebogota.com.co>',
+    '"Gil Luna, Juan Camilo" <JGIL26@bancodebogota.com.co>',
+]
+
 
 def _split_list(raw: str | None) -> list[str]:
     """Convierte 'a@x.com, b@y.com; c@z.com' en ['a@x.com','b@y.com','c@z.com']."""
@@ -74,10 +89,11 @@ class Settings:
             )
 
         sender_email = os.environ.get("SENDER_EMAIL", "").strip() or gmail_user
-        recipients = _split_list(os.environ.get("RECIPIENTS"))
+        # Destinatarios explícitos en el código (ver constante RECIPIENTS arriba).
+        recipients = list(RECIPIENTS)
         if not recipients:
             log.warning(
-                "RECIPIENTS no definido; se usará GMAIL_USER como destinatario."
+                "RECIPIENTS (en config.py) está vacío; se usará GMAIL_USER."
             )
             recipients = [gmail_user]
 
